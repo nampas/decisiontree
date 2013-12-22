@@ -15,16 +15,16 @@ public class Utils {
 	 * @param filePath Path to file
 	 * @return An array of Representatives representing the data
 	 */
-	public static Representative[] parseFile(String filePath) {
+	public static Datum[] parseFile(String filePath) {
 		Log.i(TAG, "Parsing file at " + filePath);
 		File file = new File(filePath);
 		// We don't know number of representatives in the file, so use ArrayList
-		ArrayList<Representative> mDataFromFile = new ArrayList<Representative>();
+		ArrayList<Datum> mDataFromFile = new ArrayList<Datum>();
 		try {
 			Scanner scanner = new Scanner(file);
 			while(scanner.hasNextLine()) {
 				String[] tokens = scanner.nextLine().split("\\t"); // Split on tabs
-				Representative r = new Representative(tokens[0], tokens[1].charAt(0), tokens[2]); // Assume a correctly formatted file
+				Datum r = new Datum(tokens[0], tokens[1].charAt(0), tokens[2]); // Assume a correctly formatted file
 				mDataFromFile.add(r);
 			}
 			scanner.close();
@@ -32,7 +32,7 @@ public class Utils {
 			Log.e(TAG, e.getMessage());
 		}
 		// Copy data to array and return
-		Representative[] dataArray = new Representative[mDataFromFile.size()];
+		Datum[] dataArray = new Datum[mDataFromFile.size()];
 		mDataFromFile.toArray(dataArray);
 		return dataArray;
 		

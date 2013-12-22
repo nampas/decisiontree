@@ -15,13 +15,13 @@ class DTreeNode {
 	private DTreeNode[] mChildren;
 	// In case we need to get parent's majority
 	private DTreeNode mParent; 
-	private Representative[] mData;
+	private Datum[] mData;
 	// The majority party at this leaf, or PARTY_TIE if tied
 	private char mMajorityParty; 
 	
 	public char mPruneUniformVal;
 
-	public DTreeNode(Representative[] data) {
+	public DTreeNode(Datum[] data) {
 		this(data, DecisionTree.VOTE_NA, null);
 	}
 
@@ -31,7 +31,7 @@ class DTreeNode {
 	 * @param voteType The vote type that this node represents, either 
 	 *                 NAY, YAY or PRESENT
 	 */
-	public DTreeNode(Representative[] data, char voteType, DTreeNode parent) {
+	public DTreeNode(Datum[] data, char voteType, DTreeNode parent) {
 		mEntropy = DecisionTree.calculateEntropy(data);
 		mChildren = new DTreeNode[0];
 		mData = data;
@@ -41,7 +41,7 @@ class DTreeNode {
 		mMajorityParty = setMajorityParty();
 	}
 
-	public Representative[] getData() {
+	public Datum[] getData() {
 		return mData;
 	}
 
@@ -75,8 +75,8 @@ class DTreeNode {
 	private char checkUniformity() {
 		int dCount = 0;
 		int rCount = 0;
-		for(Representative r : mData) {
-			if(r.getParty() == DecisionTree.PARTY_D) dCount++;
+		for(Datum r : mData) {
+			if(r.getLabel() == DecisionTree.PARTY_D) dCount++;
 			else rCount++;
 			// If there exists D and R labels in the node's data set, node is 
 			// not uniform
@@ -105,8 +105,8 @@ class DTreeNode {
 	private char setMajorityParty()	{
 		int dCount = 0;
 		int rCount = 0;
-		for(Representative r : mData) {
-			if(r.getParty() == DecisionTree.PARTY_D) dCount++;
+		for(Datum r : mData) {
+			if(r.getLabel() == DecisionTree.PARTY_D) dCount++;
 			else rCount++;
 		}
 		if(dCount > rCount) return DecisionTree.PARTY_D;
