@@ -1,0 +1,9 @@
+/libs
+/bin
+/captures
+/neuralnets
+/capturesold
+/slf4j-1.7.5
+.classpath
+.project
+.settings
