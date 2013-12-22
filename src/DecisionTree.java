@@ -6,6 +6,12 @@ import java.util.Random;
 import java.util.Scanner;
 
 class DecisionTree {
+	
+	public interface Datum {
+		
+	}
+	
+	private static final String TAG = DecisionTree.class.getSimpleName();
 
 	// Data label values
 	public static final char PARTY_D = 'D';
@@ -33,8 +39,9 @@ class DecisionTree {
 	private static final double NAT_LOG_2 = 0.69314718056d;
 	
 	/**
-	 * Main method accepts an argument for the voting data file location. If no argument is provided,
-	 * the program will use a default file
+	 * Main method accepts an argument for the data file location. 
+	 * If no argument is provided, the program will use the default voting file
+	 * example
 	 * @param args
 	 */
 	public static void main(String[] args) {
@@ -45,14 +52,15 @@ class DecisionTree {
 			dTree = new DecisionTree();
 		
 		// Train and tune on the entire data set, and print the tree
-		System.out.println("Training and tuning on entire data set");
+		Log.i(TAG, "Training and tuning on entire data set");
 		dTree.trainAndTune(dTree.getVotingData());
-		System.out.println("Tree induced from training and pruning on entire data set:\n" + dTree);
+		Log.i(TAG, "Tree induced from training and pruning on entire data set:" 
+				+ "\n" + dTree);
 		
-		// Do leave-one-out cross validation, and print accuracy
+		// Do leave-one-out cross validation
 		double louAccuracy = dTree.doLOUCrossValidation();
-		DecimalFormat doubleFormat = new DecimalFormat("#.000"); // With help from: http://stackoverflow.com/questions/8895337/how-do-i-limit-the-number-of-decimals-printed-for-a-double
-		System.out.println("Tree accuracy " + doubleFormat.format(louAccuracy) + "%");
+		DecimalFormat doubleFormat = new DecimalFormat("#.000");
+		Log.i(TAG, "Tree accuracy " + doubleFormat.format(louAccuracy) + "%");
 	}
 	
 	/**
@@ -64,26 +72,26 @@ class DecisionTree {
 	
 	/**
 	 * Builds a decision tree from the specified voting file
-	 * @param votingFilePath
+	 * @param votingFilePath Path to voting file
 	 */
 	public DecisionTree(String votingFilePath) {
-		mVotingData = parseFile(votingFilePath);
+		mVotingData = Utils.parseFile(votingFilePath);
 		mNumIssues = mVotingData[0].getVotes().length();
 		mRootNode = null;
 	}
 	
 	/**
-	 * Executes leave-one-out cross validation, and prints out the average accuracy
+	 * Executes leave-one-out cross validation, and prints the average accuracy
 	 * across all instances
 	 */
 	public double doLOUCrossValidation() {
-		System.out.println("Doing leave-one-out cross validation");
+		Log.i(TAG, "Executing leave-one-out cross validation");
 		double totalAccuracy = 0;
 		Representative[] testTune = new Representative[mVotingData.length-1];
 		// Loop through all data elements, we leave one out each time
 		for(int i = 0; i < mVotingData.length; i++) {
-			// Inefficient, but easy. Copy over all elements except the ith, which
-			// will constitute our testing set
+			// Inefficient, but easy. Copy over all elements except the ith, 
+			// which will constitute our testing set
 			for(int j = 0; j < mVotingData.length; j++) {
 				if(j < i) {
 					testTune[j] = mVotingData[j];
@@ -95,7 +103,8 @@ class DecisionTree {
 			// Train and tune with the left-one-out data set
 			trainAndTune(testTune);
 			// Test with the element left out, and increment total accuracy
-			totalAccuracy += findTreeAccuracy(new Representative[] {mVotingData[i]});
+			totalAccuracy += 
+					findTreeAccuracy(new Representative[] {mVotingData[i]});
 		}
 		// Return average accuracy
 		return totalAccuracy / mVotingData.length;
@@ -111,30 +120,23 @@ class DecisionTree {
 
 		// Find the unpruned accuracy
 		mTreeAccuracy = findTreeAccuracy(trainTune[1]);
-		System.exit(1);
 		
-		// Tune the induced tree.
-		// Note: I have two tuning methods. tuneTreeClassNotes() implement the algorithm
-		// described in the class slides. tuneTreeWiki() implements the algorithm described
-		// on wikipedia. Both algorithms seem to result in the same tree: accuracies are equal.
-		// Feel to try them both 
-		tuneTreeClassNotes(trainTune[1]);
-//		tuneTreeWiki(mRootNode, trainTune[1]);
+		// Tune the induced tree
+		tuneTree(trainTune[1]);
 	}
 	
 	/**
-	 * Does reduced-error pruning on the tree, using the method described in the CS431
-	 * class notes
+	 * Does reduced-error pruning on the tree. This a greedy approach.
 	 * @param root 
 	 * @param tuningData
 	 */
-	private void tuneTreeClassNotes(Representative[] tuningData) {
+	private void tuneTree(Representative[] tuningData) {
 		boolean morePruning = true;
 		// Loop until any more pruning reduce the accuracy of the tree
 		while(morePruning) {
-			// The best prune will move up the recursive stack. If the best prune increases
-			// accuracy, do the prune. Otherwise, end pruning.
-			TuneWrapper bestPrune = tuneClassNotesHelper(mRootNode, tuningData);
+			// The best prune will move up the recursive stack. If the best 
+			// prune increases accuracy, do the prune. Otherwise end pruning.
+			TuneWrapper bestPrune = tuneTreeHelper(mRootNode, tuningData);
 			if(bestPrune.bestAccuracy > mTreeAccuracy) {
 				DTreeNode pruneNode = bestPrune.bestNodeToPrune;
 				pruneNode.setUniform(pruneNode.getMajorityParty());
@@ -143,23 +145,22 @@ class DecisionTree {
 				morePruning = false;
 			}
 		}
-		
 	}
 	
 	/**
-	 * Recursive helper method for doing reduced-error pruning using the method described in the CS431
-	 * class notes
+	 * Recursive helper method for doing reduced-error pruning
 	 * @param root Current root node
 	 * @param tuningData The data to tune on
-	 * @return The best node to prune from the root's subtree. This includes the root itself
+	 * @return The best node to prune from the root's subtree, including 
+	 *         the root 
 	 */
-	private TuneWrapper tuneClassNotesHelper(DTreeNode root, Representative[] tuningData) {
+	private TuneWrapper tuneTreeHelper(DTreeNode root, Representative[] tuningData) {
 		
 		DTreeNode bestNode = root;
 		double bestAccuracy;
-		// Try pruning this node, and calculate new accuracy. Keep track of the old
-		// uniform val, and reset to it after accuracy check so that upon recursion
-		// this node will not be considered a leaf
+		// Try pruning this node and calculate new accuracy. Keep track of
+		// the old uniform value, and reset to it after accuracy check so that
+		// this node will not be considered a leaf upon recursion.
 		char oldUniformVal = root.getUniformVal();
 		root.setUniform(root.getMajorityParty());
 		bestAccuracy = findTreeAccuracy(tuningData);
@@ -167,7 +168,7 @@ class DecisionTree {
 
 		// Recurse to children
 		for(DTreeNode child : root.getChildren()) {
-			TuneWrapper result = tuneClassNotesHelper(child, tuningData);
+			TuneWrapper result = tuneTreeHelper(child, tuningData);
 			// If any child branch returns a better accuracy, pass it on. 
 			if(bestAccuracy < result.bestAccuracy) {
 				bestNode = result.bestNodeToPrune;
@@ -175,38 +176,6 @@ class DecisionTree {
 			}
 		}
 		return new TuneWrapper(bestNode, bestAccuracy);
-	}
-
-	/**
-	 * Recursive method for doing reduced-error pruning on the tree. This implements
-	 * the algorithm described on Wikipedia: "Starting at the leaves, each node is 
-	 * replaced with its most popular class. If the prediction accuracy is not affected 
-	 * then the change is kept." http://en.wikipedia.org/wiki/Pruning_%28decision_trees%29
-	 * @param root Current root node
-	 * @param tuningData The data on which to tune
-	 */
-	private void tuneTreeWiki(DTreeNode root, Representative[] tuningData) {
-		// End recursion on leaves
-		if(root.isUniform()) return;
-		
-		// Recurse to end of branches first. We want to start at the direct parent
-		// nodes of leaves, and move up the tree from there
-		for(DTreeNode child : root.getChildren()) {
-			tuneTreeWiki(child, tuningData);
-		}
-		
-		// Change this node to a leaf, with a uniform value of the majority
-		root.setUniform(root.getMajorityParty());
-		
-		// Now check if we have better accuracy on the tree. If so, keep the change,
-		// otherwise revert this node to its existing state
-		double newAccuracy = findTreeAccuracy(tuningData);
-		if(newAccuracy > mTreeAccuracy) {
-			mTreeAccuracy = newAccuracy;
-			root.setChildren(new DTreeNode[0]); // Is now leaf, get rid of children
-		} else {
-			root.setUniform(NOT_UNIFORM);
-		}		
 	}
 	
 	/**
@@ -219,9 +188,11 @@ class DecisionTree {
 		if(root.isUniform())
 			return;
 
+		// Keep track of best gain seen so far
 		double bestGain = -1;
 		int bestVote = -1;
 		Representative[][] bestSplit = null;
+		
 		int rootDataLength = root.getData().length;
 		// Split on every issue, see which will maximize the gain
 		for(int i = 0; i < mNumIssues; i++) {
@@ -229,15 +200,16 @@ class DecisionTree {
 			double currentEntropy = 0;
 			for(int j = 0; j < split.length; j++) {
 				// Add weighted entropy of this subset to running total
-				currentEntropy += ((double)split[j].length / rootDataLength) * calculateEntropy(split[j]);
+				currentEntropy += ((double)split[j].length / rootDataLength) 
+						* calculateEntropy(split[j]);
 			}
-			// Subtract the post-split weighted entropy from this node's entropy to calculate gain
-			double gain = root.getEntropy() - currentEntropy;
-			System.out.println(gain);
+			// Subtract the post-split weighted entropy from this node's 
+			// entropy to calculate gain
+			double curGain = root.getEntropy() - currentEntropy;
 			
 			// If this gain is better, update best-so-far
-			if(gain > bestGain) {
-				bestGain = gain;
+			if(curGain > bestGain) {
+				bestGain = curGain;
 				bestVote = i;
 				bestSplit = split;
 			}
@@ -278,7 +250,8 @@ class DecisionTree {
 		int tuneLength = data.length / TUNE_SET_SPACING;
 		if(data.length % TUNE_SET_SPACING != 0) tuneLength++;
 		Representative[] tuneSet = new Representative[tuneLength];
-		Representative[] trainSet = new Representative[data.length - tuneSet.length];
+		Representative[] trainSet = 
+				new Representative[data.length - tuneSet.length];
 
 		int tuneIndex = 0;
 		int trainIndex = 0;
@@ -303,7 +276,9 @@ class DecisionTree {
 	 * @return An array of three Representative arrays. Index 0 is the yay votes,
 	 *             index 1 is the nay votes, and index 2 is the present votes. 
 	 */
-	private Representative[][] splitDataOnVote(Representative[] data, int voteIndex) {
+	private Representative[][] splitDataOnVote(Representative[] data,
+												int voteIndex) 
+	{
 		Representative[][] splitLists = new Representative[3][];
 		
 		// On the specified vote, split data into yay, nay and present lists
@@ -361,43 +336,17 @@ class DecisionTree {
 		return mVotingData;
 	}
 	
-	/**
-	 * Parses the specified voting file into an array of Representatives.
-	 * Error checking is minimal, this parser mostly assumes that the file
-	 * is "to spec"
-	 * @param filePath Path to file
-	 * @return An array of Representatives representing the data
-	 */
-	private Representative[] parseFile(String filePath) {
-		System.out.println("Parsing file at " + filePath);
-		File file = new File(filePath);
-		// We don't know number of representatives in the file, so use ArrayList
-		ArrayList<Representative> mDataFromFile = new ArrayList<Representative>();
-		try {
-			Scanner scanner = new Scanner(file);
-			while(scanner.hasNextLine()) {
-				String[] tokens = scanner.nextLine().split("\\t"); // Split on tabs
-				Representative r = new Representative(tokens[0], tokens[1].charAt(0), tokens[2]); // Assume a correctly formatted file
-				mDataFromFile.add(r);
-			}
-			scanner.close();
-		} catch (FileNotFoundException e) {
-			System.err.println("File not found at " + filePath);
-			e.printStackTrace();
-		}
-		// Copy data to array and return
-		Representative[] dataArray = new Representative[mDataFromFile.size()];
-		mDataFromFile.toArray(dataArray);
-		return dataArray;
-		
-	}
-	
 	@Override
 	public String toString() {
 		return stringHelper(mRootNode, 1);
 	}
 	
-	// Recursive helper for building string representations of this DecisionTree
+	/**
+	 * Recursive helper for building string representations of this DecisionTree
+	 * @param root Current root
+	 * @param depth The depth of the root
+	 * @return As tring representation of this node and its subtree
+	 */
 	private String stringHelper(DTreeNode root, int depth) {
 		String str = root + "\n";
 		for(DTreeNode r : root.getChildren()) {
