@@ -1,28 +1,32 @@
+import java.util.Random;
+import java.util.Set;
+
 class DTreeNode {
-	
-	private final char PARTY_TIE = 'x';
 
 	// If this node contains uniform data (is a leaf), this will be the 
 	// uniform label
-	private char mUniformVal; 
+	private Character mUniformVal; 
 							 
 	private double mEntropy;
-	// The vote type that this node splits on, either VOTE_YAY, VOTE_NAY, 
-	// VOTE_PRESENT or VOTE_NA
-	private char mVoteType; 
+	// The feature type that this node splits on, or null if this is the root
+	private Character mFeatureValue; 
 	// The index of the vote on which this node splits
 	private int mSplitOnVote; 
 	private DTreeNode[] mChildren;
 	// In case we need to get parent's majority
 	private DTreeNode mParent; 
-	private Datum[] mData;
-	// The majority party at this leaf, or PARTY_TIE if tied
-	private char mMajorityParty; 
+	private DataModel.Datum[] mData;
+	// The majority label at this leaf, or null if tied
+	private Character mMajorityLabel; 
+	
+	private Character[] mLabels;
 	
 	public char mPruneUniformVal;
 
-	public DTreeNode(Datum[] data) {
-		this(data, DecisionTree.VOTE_NA, null);
+	public DTreeNode(DataModel.Datum[] data, 
+					Character[] labels,
+					double entropy) {
+		this(data, null, null, labels, entropy);
 	}
 
 	/**
@@ -31,17 +35,25 @@ class DTreeNode {
 	 * @param voteType The vote type that this node represents, either 
 	 *                 NAY, YAY or PRESENT
 	 */
-	public DTreeNode(Datum[] data, char voteType, DTreeNode parent) {
-		mEntropy = DecisionTree.calculateEntropy(data);
+	public DTreeNode(DataModel.Datum[] data, 
+					Character featureVal, 
+					DTreeNode parent, 
+					Character[] labels,
+					double entropy) 
+	{
+		mEntropy = entropy;
 		mChildren = new DTreeNode[0];
 		mData = data;
-		mVoteType = voteType;
+		mFeatureValue = featureVal;
 		mParent = parent;
+		
+		mLabels = labels;
+		
 		mUniformVal = checkUniformity();
-		mMajorityParty = setMajorityParty();
+		mMajorityLabel = setMajorityParty();
 	}
 
-	public Datum[] getData() {
+	public DataModel.Datum[] getData() {
 		return mData;
 	}
 
@@ -72,47 +84,57 @@ class DTreeNode {
 	 * (PARTY_D or PARTY_R)
 	 * @return PARTY_D or PARTY_R if uniformly labeled, NOT_UNIFORM otherwise 
 	 */
-	private char checkUniformity() {
-		int dCount = 0;
-		int rCount = 0;
-		for(Datum r : mData) {
-			if(r.getLabel() == DecisionTree.PARTY_D) dCount++;
-			else rCount++;
-			// If there exists D and R labels in the node's data set, node is 
+	private Character checkUniformity() {
+		int label1Count = 0;
+		int label2Count = 0;
+		for(DataModel.Datum d : mData) {
+			if(d.getLabel() == mLabels[0]) label1Count++;
+			else label2Count++;
+			// If there exists both labels in the node's data set, node is 
 			// not uniform
-			if(dCount > 0 && rCount > 0) 
-				return DecisionTree.NOT_UNIFORM;
+			if(label1Count > 0 && label2Count > 0) 
+				return null;
 		}
 		char party;
-		if(dCount > 0) {
-			party = DecisionTree.PARTY_D;
-		} else if(rCount > 0) {
-			party = DecisionTree.PARTY_R;
+		if(label1Count > 0) {
+			party = mLabels[0];
+		} else if(label2Count > 0) {
+			party = mLabels[1];
 		} else {
 			// This means we have an empty data list. This node will become a 
-			// leaf whose uniform value is the majority party of the 
+			// leaf whose uniform value is the majority label of the 
 			// parent node (or random if no parent)
-			party = mParent == null ? 
-					DecisionTree.randomParty() : mParent.getMajorityParty();
+			party = (mParent == null) ? 
+					randomParty() : mParent.getMajorityParty();
 		}
 		return party;
+	}
+	
+	/**
+	 * Randomly returns a label
+	 * @return
+	 */
+	private char randomParty() {
+		Random rand = new Random(System.currentTimeMillis());
+		int num = rand.nextInt(2);
+		if(num == 0) return mLabels[0];
+		else return mLabels[1];
 	}
 
 	/**
 	 * Calculates and returns the majority party at this node
 	 * @return The majority party at this node
 	 */
-	private char setMajorityParty()	{
-		int dCount = 0;
-		int rCount = 0;
-		for(Datum r : mData) {
-			if(r.getLabel() == DecisionTree.PARTY_D) dCount++;
-			else rCount++;
+	private Character setMajorityParty()	{
+		int label1Count = 0;
+		int label2Count = 0;
+		for(DataModel.Datum d : mData) {
+			if(d.getLabel() == mLabels[0]) label1Count++;
+			else label2Count++;
 		}
-		if(dCount > rCount) return DecisionTree.PARTY_D;
-		else if(rCount > dCount) return DecisionTree.PARTY_R;
-		// In case of a tie, pick a random party
-		else return PARTY_TIE;
+		if(label1Count > label2Count) return mLabels[0];
+		else if(label2Count > label1Count) return mLabels[1];
+		else return null;
 	}
 		
 	/**
@@ -135,12 +157,12 @@ class DTreeNode {
 	 * @return The majority party at the closest ancestor 
 	 */
 	private char majorityPartyHelper(DTreeNode root) {
-		char val = root.mMajorityParty;
+		Character val = root.mMajorityLabel;
 		// If this node ties, recurse up
-		if(val == PARTY_TIE) {
+		if(val == null) {
 			// If no parent, just pick a random party
 			if(root.mParent == null)
-				val = DecisionTree.randomParty();
+				val = randomParty();
 			else
 				val = majorityPartyHelper(root.mParent);
 		}
@@ -153,11 +175,10 @@ class DTreeNode {
 
 	// Checks if this is a uniform (leaf) node
 	public boolean isUniform() {
-		if (mUniformVal == DecisionTree.PARTY_D 
-				|| mUniformVal == DecisionTree.PARTY_R)
-			return true;
-		else
+		if (mUniformVal == null)
 			return false;
+		else
+			return true;
 	}
 
 	// Returns the uniform value of this node. This is PARTY_D, PARTY_R,
@@ -171,9 +192,9 @@ class DTreeNode {
 		return mSplitOnVote;
 	}
 
-	// Returns the vote (YAY, NAY or PRESENT) that this node represents
-	public char getVoteType() {
-		return mVoteType;
+	// Returns the feature value that this node represents
+	public Character getFeatureValue() {
+		return mFeatureValue;
 	}
 
 	@Override
@@ -183,11 +204,11 @@ class DTreeNode {
 		// 'A' + 1 is B, 'A' + 2 is C, etc.
 		char a = 'A'; //
 		String str = "";
-		if(mUniformVal == DecisionTree.NOT_UNIFORM)
-			str = (mVoteType == DecisionTree.VOTE_NA ? " " : mVoteType)
+		if(mUniformVal == null)
+			str = (mFeatureValue == null) ? " " : mFeatureValue
 				+ " Issue " + (char)(a + mSplitOnVote);
 		else 
-			str = mVoteType + " " + mUniformVal;
+			str = mFeatureValue + " " + mUniformVal;
 		return str +=  " (" + mData.length + " reps)";
 	}
 }

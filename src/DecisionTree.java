@@ -1,27 +1,11 @@
-import java.text.DecimalFormat;
 import java.util.ArrayList;
-import java.util.Random;
+import java.util.Set;
 
 class DecisionTree {
 
 	private static final String TAG = DecisionTree.class.getSimpleName();
-
-	// Data label values
-	public static final char PARTY_D = 'D';
-	public static final char PARTY_R = 'R';
-	public static final char NOT_UNIFORM = 'x';
 	
-	// Vote values
-	public static final char VOTE_YAY = '+';
-	public static final char VOTE_NAY = '-';
-	public static final char VOTE_PRESENT = '.';
-	public static final char VOTE_NA = 'x'; // Vote n/a (for the root node, which isn't the result of a split)
-	
-	// Path to default voting data file
-	private static final String VOTING_DATA_FILE = "voting-data.tsv"; 
-	
-	private Datum[] mVotingData;
-	private int mNumIssues; // Number of issues in the data set
+	private DataModel mDataModel;
 	private DTreeNode mRootNode;
 	private double mTreeAccuracy;
 	
@@ -30,46 +14,13 @@ class DecisionTree {
 	
 	// The natural log of 2. Pre-calculating this makes log2() a bit more efficient
 	private static final double NAT_LOG_2 = 0.69314718056d;
-	
+
 	/**
-	 * Main method accepts an argument for the data file location. 
-	 * If no argument is provided, the program will use the default voting file
-	 * example
-	 * @param args
-	 */
-	public static void main(String[] args) {
-		DecisionTree dTree;
-		if(args.length > 0)
-			dTree = new DecisionTree(args[0]);
-		else 
-			dTree = new DecisionTree();
-		
-		// Train and tune on the entire data set, and print the tree
-		Log.i(TAG, "Training and tuning on entire data set");
-		dTree.trainAndTune(dTree.getVotingData());
-		Log.i(TAG, "Tree induced from training and pruning on entire data set:" 
-				+ "\n" + dTree);
-		
-		// Do leave-one-out cross validation
-		double louAccuracy = dTree.doLOUCrossValidation();
-		DecimalFormat doubleFormat = new DecimalFormat("#.000");
-		Log.i(TAG, "Tree accuracy " + doubleFormat.format(louAccuracy) + "%");
-	}
-	
-	/**
-	 * Builds a decision tree from the default voting file
-	 */
-	public DecisionTree() {
-		this(VOTING_DATA_FILE);
-	}
-	
-	/**
-	 * Builds a decision tree from the specified voting file
+	 * Builds a decision tree for the specified data model
 	 * @param votingFilePath Path to voting file
 	 */
-	public DecisionTree(String votingFilePath) {
-		mVotingData = Utils.parseFile(votingFilePath);
-		mNumIssues = mVotingData[0].getNumFeatures();
+	public DecisionTree(DataModel dataModel) {
+		mDataModel = dataModel;
 		mRootNode = null;
 	}
 	
@@ -79,36 +30,43 @@ class DecisionTree {
 	 */
 	public double doLOUCrossValidation() {
 		Log.i(TAG, "Executing leave-one-out cross validation");
+		
+		DataModel.Datum[] data = mDataModel.getData();
+		
 		double totalAccuracy = 0;
-		Datum[] testTune = new Datum[mVotingData.length-1];
+		DataModel.Datum[] testTune = 
+				new DataModel.Datum[data.length-1];
+		
 		// Loop through all data elements, we leave one out each time
-		for(int i = 0; i < mVotingData.length; i++) {
+		for(int i = 0; i < data.length; i++) {
 			// Inefficient, but easy. Copy over all elements except the ith, 
 			// which will constitute our testing set
-			for(int j = 0; j < mVotingData.length; j++) {
+			for(int j = 0; j < data.length; j++) {
 				if(j < i) {
-					testTune[j] = mVotingData[j];
+					testTune[j] = data[j];
 				} else if (j > i) {
 					// ith element is not copied over, so offset index down one
-					testTune[j-1] = mVotingData[j];
+					testTune[j-1] = data[j];
 				}
 			}
 			// Train and tune with the left-one-out data set
 			trainAndTune(testTune);
 			// Test with the element left out, and increment total accuracy
 			totalAccuracy += 
-					findTreeAccuracy(new Datum[] {mVotingData[i]});
+					findTreeAccuracy(new DataModel.Datum[] {data[i]});
 		}
 		// Return average accuracy
-		return totalAccuracy / mVotingData.length;
+		return totalAccuracy / data.length;
 	}
 	
-	public void trainAndTune(Datum[] data) {
+	public void trainAndTune(DataModel.Datum[] data) {
 		// Split data into training and tuning sets
-		Datum[][] trainTune = buildTrainTuneSets(data);
+		DataModel.Datum[][] trainTune = buildTrainTuneSets(data);
 
 		// Initialize root with the training data, and start training
-		mRootNode = new DTreeNode(trainTune[0]);
+		mRootNode = new DTreeNode(trainTune[0], 
+								mDataModel.getLabels(), 
+								calculateEntropy(trainTune[0]));
 		trainTreeHelper(mRootNode);
 
 		// Find the unpruned accuracy
@@ -123,7 +81,7 @@ class DecisionTree {
 	 * @param root 
 	 * @param tuningData
 	 */
-	private void tuneTree(Datum[] tuningData) {
+	private void tuneTree(DataModel.Datum[] tuningData) {
 		boolean morePruning = true;
 		// Loop until any more pruning reduce the accuracy of the tree
 		while(morePruning) {
@@ -147,7 +105,7 @@ class DecisionTree {
 	 * @return The best node to prune from the root's subtree, including 
 	 *         the root 
 	 */
-	private TuneWrapper tuneTreeHelper(DTreeNode root, Datum[] tuningData) {
+	private TuneWrapper tuneTreeHelper(DTreeNode root, DataModel.Datum[] tuningData) {
 		
 		DTreeNode bestNode = root;
 		double bestAccuracy;
@@ -184,12 +142,13 @@ class DecisionTree {
 		// Keep track of best gain seen so far
 		double bestGain = -1;
 		int bestVote = -1;
-		Datum[][] bestSplit = null;
+		DataModel.Datum[][] bestSplit = null;
 		
 		int rootDataLength = root.getData().length;
+		int numFeatures = mDataModel.getNumFeatures();
 		// Split on every issue, see which will maximize the gain
-		for(int i = 0; i < mNumIssues; i++) {
-			Datum[][] split = splitDataOnVote(root.getData(), i);
+		for(int i = 0; i < numFeatures; i++) {
+			DataModel.Datum[][] split = splitDataOnVote(root.getData(), i);
 			double currentEntropy = 0;
 			for(int j = 0; j < split.length; j++) {
 				// Add weighted entropy of this subset to running total
@@ -220,15 +179,15 @@ class DecisionTree {
 		root.setSplitOn(bestVote);
 		
 		// Build and set children nodes
-		DTreeNode yay = new DTreeNode(bestSplit[0], VOTE_YAY, root);
-		DTreeNode nay = new DTreeNode(bestSplit[1], VOTE_NAY, root);
-		DTreeNode present = new DTreeNode(bestSplit[2], VOTE_PRESENT, root);
-		root.setChildren(new DTreeNode[] {yay, nay, present});
-		
-		// Recurse
-		trainTreeHelper(yay); // yay branch
-		trainTreeHelper(nay); // nay branch
-		trainTreeHelper(present); // present branch
+		for(int i = 0; i < bestSplit.length; i++) {
+			DTreeNode curNode = new DTreeNode(bestSplit[i], 
+											mDataModel.getFeatureValue(i), 
+											root, 
+											mDataModel.getLabels(), 
+											calculateEntropy(bestSplit[i]));
+			// Recurse
+			trainTreeHelper(curNode);
+		}
 	}
 	
 	/**
@@ -236,15 +195,15 @@ class DecisionTree {
 	 * @param data Data to separate
 	 * @return Two lists, first of which is training data, second of which is tuning data
 	 */
-	private Datum[][] buildTrainTuneSets(Datum[] data) {
-		Datum[][] trainTune = new Datum[2][];
+	private DataModel.Datum[][] buildTrainTuneSets(DataModel.Datum[] data) {
+		DataModel.Datum[][] trainTune = new DataModel.Datum[2][];
 		
 		// Initialize train and tune sets
 		int tuneLength = data.length / TUNE_SET_SPACING;
 		if(data.length % TUNE_SET_SPACING != 0) tuneLength++;
-		Datum[] tuneSet = new Datum[tuneLength];
-		Datum[] trainSet = 
-				new Datum[data.length - tuneSet.length];
+		DataModel.Datum[] tuneSet = new DataModel.Datum[tuneLength];
+		DataModel.Datum[] trainSet = 
+				new DataModel.Datum[data.length - tuneSet.length];
 
 		int tuneIndex = 0;
 		int trainIndex = 0;
@@ -269,30 +228,42 @@ class DecisionTree {
 	 * @return An array of three Representative arrays. Index 0 is the yay votes,
 	 *             index 1 is the nay votes, and index 2 is the present votes. 
 	 */
-	private Datum[][] splitDataOnVote(Datum[] data,
+	private DataModel.Datum[][] splitDataOnVote(DataModel.Datum[] data,
 												int voteIndex) 
 	{
-		Datum[][] splitLists = new Datum[3][];
+		int numFeatureVals = mDataModel.getNumFeatureValues();	
+
+		// Initialize all the split lists
+		ArrayList<ArrayList<DataModel.Datum>> splits = 
+				new ArrayList<ArrayList<DataModel.Datum>>();
+		for(int i = 0; i < numFeatureVals; i++)
+			splits.add(new ArrayList<DataModel.Datum>());
 		
-		// On the specified vote, split data into yay, nay and present lists
-		ArrayList<Datum> yays = new ArrayList<Datum>();
-		ArrayList<Datum> nays = new ArrayList<Datum>();
-		ArrayList<Datum> presents = new ArrayList<Datum>();
-		for(Datum r : data) {
-			char vote= r.getFeature(voteIndex);
-			if(vote == VOTE_YAY) yays.add(r);
-			else if(vote == VOTE_NAY) nays.add(r);
-			else presents.add(r);
+		// On the specified vote, split data into lists of each feature value
+		for(DataModel.Datum d : data) {
+			Character featureVal = d.getFeature(voteIndex);
+			// Add feature to the correct list
+			for(int i = 0; i < numFeatureVals; i++) {
+				if(mDataModel.getFeatureValue(i).equals(featureVal)) {
+					splits.get(i).add(d);
+					break;
+				}
+			}			
 		}
-		
+
+		// Initialize the 2d array which will hold lists of data split by
+		// feature value on the vote specified
+		DataModel.Datum[][] splitLists = new DataModel.Datum[numFeatureVals][];
+				
 		// Copy to arrays and add to respective locations in container array
-		splitLists[0] = new Datum[yays.size()];
-		yays.toArray(splitLists[0]);
-		splitLists[1] = new Datum[nays.size()];
-		nays.toArray(splitLists[1]);
-		splitLists[2] = new Datum[presents.size()];
-		presents.toArray(splitLists[2]);
-		
+		for(int i = 0; i < numFeatureVals; i++) {
+			ArrayList<DataModel.Datum> curList = splits.get(i);
+			DataModel.Datum[] curFeatureVal = 
+					new DataModel.Datum[curList.size()];
+			curList.toArray(curFeatureVal);
+			splitLists[i] = curFeatureVal;
+		}
+				
 		return splitLists;
 	}
 	
@@ -301,34 +272,30 @@ class DecisionTree {
 	 * @param testData Data to test with
 	 * @return Percentage of test data that tree correctly labels
 	 */
-	public double findTreeAccuracy(Datum[] testData) {
+	public double findTreeAccuracy(DataModel.Datum[] testData) {
 		int totalAccurate = 0;
-		for(Datum r : testData) {
+		for(DataModel.Datum d : testData) {
 			DTreeNode curRoot = mRootNode;
 			// Loop until we get to a leaf node
 			while(!curRoot.isUniform()) {
 				int splitOn = curRoot.getSplitOn();
 				// Find the appropriate child node, and continue looping
 				for(DTreeNode child : curRoot.getChildren()) {
-					if(child.getVoteType() == r.getFeature(splitOn))
+					if(child.getFeatureValue() == d.getFeature(splitOn))
 						curRoot = child;
 				}
 			}
 			// Compare the uniform value (label) of the leaf node against
 			// the label of the current Representative. If they're equal,
 			// the tree is accurate in this case, so increment counter
-			if(curRoot.getUniformVal() == r.getLabel())
+			if(curRoot.getUniformVal() == d.getLabel())
 				totalAccurate++;
 		}
 		
 		// Return accuracy percentage
 		return (double)totalAccurate * 100.0d / testData.length;
 	}
-	
-	public Datum[] getVotingData() {
-		return mVotingData;
-	}
-	
+
 	@Override
 	public String toString() {
 		return stringHelper(mRootNode, 1);
@@ -353,38 +320,29 @@ class DecisionTree {
 		return str;
 	}
 	
-	// *******************************
-	//  Some static "utility" methods
-	// *******************************
-	
 	/**
 	 * Calculates the entropy of the given data array
 	 * @param data Data to calculate entropy for
 	 * @return Entropy of the specified data set
 	 */
-	public static double calculateEntropy(Datum[] data) {
-		int dCount = 0;
+	private double calculateEntropy(DataModel.Datum[] data) {
+		
+		int label1Count = 0;
 		// Add up number of D party politicians
-		for(Datum r : data)
-			if(r.getLabel() == PARTY_D) 
-				dCount++;
+		for(DataModel.Datum d : data)
+			if(d.getLabel() == mDataModel.getLabel(0)) 
+				label1Count++;
 		
 		// Calculate probabilities
-		double dProb = data.length == 0 ? 0 : (double) dCount / data.length; 
-		double rProb = 1.0d - dProb;
+		double label1Prob = (data.length == 0) ? 
+				0 : (double) label1Count / data.length; 
+		double label2Prob = 1.0d - label1Prob;
 		
 		// Now plug in to the binary entropy equation
-		double entropy = -dProb * log2(dProb) - rProb * log2(rProb);
+		double entropy = -label1Prob * log2(label1Prob) - 
+				label2Prob * log2(label2Prob);
 		
 		return entropy;
-	}
-	
-	// Randomly returns PARTY_D or PARTY_R
-	public static char randomParty() {
-		Random rand = new Random(System.currentTimeMillis());
-		int num = rand.nextInt(2);
-		if(num == 0) return PARTY_D;
-		else return PARTY_R;
 	}
 	
 	/**
