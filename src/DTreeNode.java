@@ -1,5 +1,5 @@
+import java.util.ArrayList;
 import java.util.Random;
-import java.util.Set;
 
 class DTreeNode {
 
@@ -10,30 +10,41 @@ class DTreeNode {
 	private double mEntropy;
 	// The feature type that this node splits on, or null if this is the root
 	private Character mFeatureValue; 
+	
 	// The index of the vote on which this node splits
 	private int mSplitOnVote; 
-	private DTreeNode[] mChildren;
-	// In case we need to get parent's majority
+	private ArrayList<DTreeNode> mChildren;
 	private DTreeNode mParent; 
 	private DataModel.Datum[] mData;
+	
 	// The majority label at this leaf, or null if tied
 	private Character mMajorityLabel; 
 	
+	// A list of all possible labels
 	private Character[] mLabels;
 	
 	public char mPruneUniformVal;
 
+	/**
+	 * Builds a root node
+	 * @param data
+	 * @param labels
+	 * @param entropy
+	 */
 	public DTreeNode(DataModel.Datum[] data, 
 					Character[] labels,
-					double entropy) {
+					double entropy) 
+	{
 		this(data, null, null, labels, entropy);
 	}
 
 	/**
-	 * Builds a tree node
+	 * Builds an intermediary or leaf tree node
 	 * @param data The data that this node contains
-	 * @param voteType The vote type that this node represents, either 
-	 *                 NAY, YAY or PRESENT
+	 * @param featureVal The feature valuee that this node represents
+	 * @param parent This node's parent
+	 * @param labels A list of possible labels
+	 * @param entropy This node's entropy
 	 */
 	public DTreeNode(DataModel.Datum[] data, 
 					Character featureVal, 
@@ -42,15 +53,14 @@ class DTreeNode {
 					double entropy) 
 	{
 		mEntropy = entropy;
-		mChildren = new DTreeNode[0];
+		mChildren = new ArrayList<DTreeNode>();
 		mData = data;
 		mFeatureValue = featureVal;
-		mParent = parent;
-		
+		mParent = parent;		
 		mLabels = labels;
 		
 		mUniformVal = checkUniformity();
-		mMajorityLabel = setMajorityParty();
+		mMajorityLabel = setMajorityLabel();
 	}
 
 	public DataModel.Datum[] getData() {
@@ -61,7 +71,7 @@ class DTreeNode {
 		return mEntropy;
 	}
 
-	public void setUniform(char uniformVal) {
+	public void setUniform(Character uniformVal) {
 		mUniformVal = uniformVal;
 	}
 
@@ -73,12 +83,10 @@ class DTreeNode {
 		mSplitOnVote = i;
 	}
 
-	// Sets the specified nodes as the children, overwriting any child
-	// associations this node may have already had
-	public void setChildren(DTreeNode[] children) {
-		mChildren = children;
+	public void addChild(DTreeNode child) {
+		mChildren.add(child);
 	}
-
+	
 	/**
 	 * Checks if this node is uniform. If so, it returns the uniform label 
 	 * (PARTY_D or PARTY_R)
@@ -105,7 +113,7 @@ class DTreeNode {
 			// leaf whose uniform value is the majority label of the 
 			// parent node (or random if no parent)
 			party = (mParent == null) ? 
-					randomParty() : mParent.getMajorityParty();
+					randomLabel() : mParent.getMajorityLabel();
 		}
 		return party;
 	}
@@ -114,7 +122,7 @@ class DTreeNode {
 	 * Randomly returns a label
 	 * @return
 	 */
-	private char randomParty() {
+	private char randomLabel() {
 		Random rand = new Random(System.currentTimeMillis());
 		int num = rand.nextInt(2);
 		if(num == 0) return mLabels[0];
@@ -125,7 +133,7 @@ class DTreeNode {
 	 * Calculates and returns the majority party at this node
 	 * @return The majority party at this node
 	 */
-	private Character setMajorityParty()	{
+	private Character setMajorityLabel()	{
 		int label1Count = 0;
 		int label2Count = 0;
 		for(DataModel.Datum d : mData) {
@@ -144,8 +152,8 @@ class DTreeNode {
 	 * and still haven't found a majority, the tie is broken randomly
 	 * @return PARTY_D or PARTY_R
 	 */
-	public char getMajorityParty() {
-		return majorityPartyHelper(this);
+	public char getMajorityLabel() {
+		return getMajorityLabelHelper(this);
 	}
 	
 	/**
@@ -156,20 +164,20 @@ class DTreeNode {
 	 * @param root Root node of tree, to search up from
 	 * @return The majority party at the closest ancestor 
 	 */
-	private char majorityPartyHelper(DTreeNode root) {
+	private char getMajorityLabelHelper(DTreeNode root) {
 		Character val = root.mMajorityLabel;
 		// If this node ties, recurse up
 		if(val == null) {
 			// If no parent, just pick a random party
 			if(root.mParent == null)
-				val = randomParty();
+				val = randomLabel();
 			else
-				val = majorityPartyHelper(root.mParent);
+				val = getMajorityLabelHelper(root.mParent);
 		}
 		return val;
 	}
 
-	public DTreeNode[] getChildren() {
+	public ArrayList<DTreeNode> getChildren() {
 		return mChildren;
 	}
 
@@ -183,7 +191,7 @@ class DTreeNode {
 
 	// Returns the uniform value of this node. This is PARTY_D, PARTY_R,
 	// or NOT_UNIFORM if the node is not a leaf.
-	public char getUniformVal() {
+	public Character getUniformVal() {
 		return mUniformVal;
 	}
 
@@ -206,9 +214,9 @@ class DTreeNode {
 		String str = "";
 		if(mUniformVal == null)
 			str = (mFeatureValue == null) ? " " : mFeatureValue
-				+ " Issue " + (char)(a + mSplitOnVote);
+				+ " Feature " + (char)(a + mSplitOnVote);
 		else 
 			str = mFeatureValue + " " + mUniformVal;
-		return str +=  " (" + mData.length + " reps)";
+		return str +=  " (" + mData.length + " data)";
 	}
 }

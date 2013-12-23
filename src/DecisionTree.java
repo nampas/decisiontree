@@ -9,6 +9,8 @@ class DecisionTree {
 	private DTreeNode mRootNode;
 	private double mTreeAccuracy;
 	
+	private int iter = 0;
+	
 	// Specifies how many spaces to skip before adding next element to tune set
 	private int TUNE_SET_SPACING = 4; 
 	
@@ -63,7 +65,7 @@ class DecisionTree {
 		// Split data into training and tuning sets
 		DataModel.Datum[][] trainTune = buildTrainTuneSets(data);
 
-		// Initialize root with the training data, and start training
+		// Initialize root with the training data and start training
 		mRootNode = new DTreeNode(trainTune[0], 
 								mDataModel.getLabels(), 
 								calculateEntropy(trainTune[0]));
@@ -71,7 +73,7 @@ class DecisionTree {
 
 		// Find the unpruned accuracy
 		mTreeAccuracy = findTreeAccuracy(trainTune[1]);
-		
+
 		// Tune the induced tree
 		tuneTree(trainTune[1]);
 	}
@@ -90,7 +92,7 @@ class DecisionTree {
 			TuneWrapper bestPrune = tuneTreeHelper(mRootNode, tuningData);
 			if(bestPrune.bestAccuracy > mTreeAccuracy) {
 				DTreeNode pruneNode = bestPrune.bestNodeToPrune;
-				pruneNode.setUniform(pruneNode.getMajorityParty());
+				pruneNode.setUniform(pruneNode.getMajorityLabel());
 				mTreeAccuracy = bestPrune.bestAccuracy;
 			} else {
 				morePruning = false;
@@ -112,8 +114,8 @@ class DecisionTree {
 		// Try pruning this node and calculate new accuracy. Keep track of
 		// the old uniform value, and reset to it after accuracy check so that
 		// this node will not be considered a leaf upon recursion.
-		char oldUniformVal = root.getUniformVal();
-		root.setUniform(root.getMajorityParty());
+		Character oldUniformVal = root.getUniformVal();
+		root.setUniform(root.getMajorityLabel());
 		bestAccuracy = findTreeAccuracy(tuningData);
 		root.setUniform(oldUniformVal);
 
@@ -167,11 +169,10 @@ class DecisionTree {
 			}
 		}
 		
-		// If no vote splits lead to a gain, then make this node a leaf with 
-		// the majority party as its uniform value. Otherwise we'll get an
-		// infinite loop of splits on the first vote
+		// If no feature splits lead to a gain, then make this node a leaf with 
+		// the majority label as its uniform value
 		if(bestGain == 0) {
-			root.setUniform(root.getMajorityParty());
+			root.setUniform(root.getMajorityLabel());
 			return;
 		}
 		
@@ -185,6 +186,8 @@ class DecisionTree {
 											root, 
 											mDataModel.getLabels(), 
 											calculateEntropy(bestSplit[i]));
+			root.addChild(curNode);
+			
 			// Recurse
 			trainTreeHelper(curNode);
 		}
