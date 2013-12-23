@@ -1,6 +1,11 @@
 import java.util.ArrayList;
 import java.util.Random;
 
+/**
+ * A node of the decision tree
+ * @author Nathan P
+ *
+ */
 class DTreeNode {
 
 	// If this node contains uniform data (is a leaf), this will be the 
@@ -11,8 +16,8 @@ class DTreeNode {
 	// The feature type that this node splits on, or null if this is the root
 	private Character mFeatureValue; 
 	
-	// The index of the vote on which this node splits
-	private int mSplitOnVote; 
+	// The index of the feature on which this node splits
+	private int mSlitOnFeature; 
 	private ArrayList<DTreeNode> mChildren;
 	private DTreeNode mParent; 
 	private DataModel.Datum[] mData;
@@ -27,9 +32,9 @@ class DTreeNode {
 
 	/**
 	 * Builds a root node
-	 * @param data
-	 * @param labels
-	 * @param entropy
+	 * @param data The data that this node contains
+	 * @param labels A list of possible labels for the data set
+	 * @param entropy This node's entropy
 	 */
 	public DTreeNode(DataModel.Datum[] data, 
 					Character[] labels,
@@ -41,9 +46,9 @@ class DTreeNode {
 	/**
 	 * Builds an intermediary or leaf tree node
 	 * @param data The data that this node contains
-	 * @param featureVal The feature valuee that this node represents
+	 * @param featureVal The feature value that this node represents
 	 * @param parent This node's parent
-	 * @param labels A list of possible labels
+	 * @param labels A list of possible labels for the data set
 	 * @param entropy This node's entropy
 	 */
 	public DTreeNode(DataModel.Datum[] data, 
@@ -63,34 +68,50 @@ class DTreeNode {
 		mMajorityLabel = setMajorityLabel();
 	}
 
+	/**
+	 * Gets the data that this node contains
+	 * @return
+	 */
 	public DataModel.Datum[] getData() {
 		return mData;
 	}
 
+	/**
+	 * Gets this node's entropy
+	 * @return
+	 */
 	public double getEntropy() {
 		return mEntropy;
 	}
 
+	/**
+	 * Set the uniform value of this node
+	 * @param uniformVal The uniform value of this node, or null if not uniform
+	 */
 	public void setUniform(Character uniformVal) {
 		mUniformVal = uniformVal;
 	}
 
 	/**
-	 * Set the vote that this node splits on
-	 * @param i The index of the vote on which this node splits
+	 * Set the feature that this node splits on
+	 * @param i The index of the feature on which this node splits
 	 */
 	public void setSplitOn(int i) {
-		mSplitOnVote = i;
+		mSlitOnFeature = i;
 	}
 
+	/**
+	 * Adds a child node to this node
+	 * @param child A new child node
+	 */
 	public void addChild(DTreeNode child) {
 		mChildren.add(child);
 	}
 	
 	/**
-	 * Checks if this node is uniform. If so, it returns the uniform label 
-	 * (PARTY_D or PARTY_R)
-	 * @return PARTY_D or PARTY_R if uniformly labeled, NOT_UNIFORM otherwise 
+	 * Checks if this node is uniform. If so, it returns the uniform label,
+	 * otherwise returns null
+	 * @return Uniform label, or null if not uniform
 	 */
 	private Character checkUniformity() {
 		int label1Count = 0;
@@ -103,19 +124,19 @@ class DTreeNode {
 			if(label1Count > 0 && label2Count > 0) 
 				return null;
 		}
-		char party;
+		char label;
 		if(label1Count > 0) {
-			party = mLabels[0];
+			label = mLabels[0];
 		} else if(label2Count > 0) {
-			party = mLabels[1];
+			label = mLabels[1];
 		} else {
 			// This means we have an empty data list. This node will become a 
 			// leaf whose uniform value is the majority label of the 
 			// parent node (or random if no parent)
-			party = (mParent == null) ? 
+			label = (mParent == null) ? 
 					randomLabel() : mParent.getMajorityLabel();
 		}
-		return party;
+		return label;
 	}
 	
 	/**
@@ -146,23 +167,20 @@ class DTreeNode {
 	}
 		
 	/**
-	 * Gets the party with which the majority of this node's data affiliates.
+	 * Gets the label with which the majority of this node's data affiliates.
 	 * In the case of a tie, we recurse up the tree until we get to a node
 	 * which has a majority. Finally, if we've recursed up the tree to the root 
 	 * and still haven't found a majority, the tie is broken randomly
-	 * @return PARTY_D or PARTY_R
+	 * @return Majority label, or random label in the case of a tie
 	 */
 	public char getMajorityLabel() {
 		return getMajorityLabelHelper(this);
 	}
 	
 	/**
-	 * Recursive helper for finding majority. This method is "wrapped" with 
-	 * getMajorityParty() to make the API cleaner. It would be awkward for 
-	 * callers to call this method on a DTreeNode instance, and then require 
-	 * them to specify that instance as an argument
+	 * Recursive helper for finding the majority label at a node
 	 * @param root Root node of tree, to search up from
-	 * @return The majority party at the closest ancestor 
+	 * @return The majority label at the closest ancestor 
 	 */
 	private char getMajorityLabelHelper(DTreeNode root) {
 		Character val = root.mMajorityLabel;
@@ -177,11 +195,18 @@ class DTreeNode {
 		return val;
 	}
 
+	/**
+	 * Gets this node's children
+	 * @return
+	 */
 	public ArrayList<DTreeNode> getChildren() {
 		return mChildren;
 	}
 
-	// Checks if this is a uniform (leaf) node
+	/**
+	 * Checks if this is a uniform (leaf) node
+	 * @return True if node is uniform (a leaf), false otherwise
+	 */
 	public boolean isUniform() {
 		if (mUniformVal == null)
 			return false;
@@ -189,18 +214,27 @@ class DTreeNode {
 			return true;
 	}
 
-	// Returns the uniform value of this node. This is PARTY_D, PARTY_R,
-	// or NOT_UNIFORM if the node is not a leaf.
+	/**
+	 * Returns the uniform value of this node, or null if this node is not
+	 * uniform
+	 * @return Uniform value of node, or null if node is not uniform
+	 */
 	public Character getUniformVal() {
 		return mUniformVal;
 	}
 
-	// Returns the vote index that this node splits on
+	/**
+	 * Returns the feature index on which this node splits
+	 * @return
+	 */
 	public int getSplitOn() {
-		return mSplitOnVote;
+		return mSlitOnFeature;
 	}
 
-	// Returns the feature value that this node represents
+	/**
+	 * Returns the feature value that this node represents
+	 * @return
+	 */
 	public Character getFeatureValue() {
 		return mFeatureValue;
 	}
@@ -208,13 +242,13 @@ class DTreeNode {
 	@Override
 	public String toString() {
 		// We can take advantage of letter binary representations to convert 
-		// from issue number to corresponding issue letter.
+		// from feature number to corresponding issue letter.
 		// 'A' + 1 is B, 'A' + 2 is C, etc.
 		char a = 'A'; //
 		String str = "";
 		if(mUniformVal == null)
 			str = (mFeatureValue == null) ? " " : mFeatureValue
-				+ " Feature " + (char)(a + mSplitOnVote);
+				+ " Feature " + (char)(a + mSlitOnFeature);
 		else 
 			str = mFeatureValue + " " + mUniformVal;
 		return str +=  " (" + mData.length + " data)";

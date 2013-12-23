@@ -3,7 +3,11 @@ import java.io.FileNotFoundException;
 import java.text.DecimalFormat;
 import java.util.Scanner;
 
-
+/**
+ * A main class for testing the decision tree.
+ * @author Nathan P
+ *
+ */
 public class VotingTester {
 
 	public static final String TAG = VotingTester.class.getSimpleName();
@@ -46,20 +50,27 @@ public class VotingTester {
 	 * Error checking is minimal, this parser mostly assumes that the file
 	 * is "to spec"
 	 * @param filePath Path to file
-	 * @return  representing the data
+	 * @return A data model representing the data
 	 */
 	public static DataModel parseFile(String filePath) {
 		Log.i(TAG, "Parsing file at " + filePath);
-		File file = new File(filePath);
 		
-		DataModel.Builder dataBuilder = 
-						new DataModel.Builder();
+		File file = new File(filePath);
+		DataModel.Builder dataBuilder = new DataModel.Builder();
 		
 		try {
 			Scanner scanner = new Scanner(file);
 			while(scanner.hasNextLine()) {
-				String[] tokens = scanner.nextLine().split(TAB_DELIMITER); // Split on tabs
-				dataBuilder.addDatum(tokens[0], tokens[1].charAt(0), tokens[2]); // Assume a correctly formatted file
+				// Split on tabs
+				String[] tokens = scanner.nextLine().split(TAB_DELIMITER);
+				// Ensure we have a complete datum
+				if(tokens.length != 3) {
+					scanner.close();
+					throw new IllegalArgumentException("Illegal line in "
+							+ "data file. Each data entry must have a unique "
+							+ "identifier, a label, and a string of feaures");
+				}
+				dataBuilder.addDatum(tokens[0], tokens[1].charAt(0), tokens[2]);
 			}
 			scanner.close();
 		} catch (FileNotFoundException e) {

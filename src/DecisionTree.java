@@ -8,13 +8,12 @@ class DecisionTree {
 	private DataModel mDataModel;
 	private DTreeNode mRootNode;
 	private double mTreeAccuracy;
-	
-	private int iter = 0;
-	
+
 	// Specifies how many spaces to skip before adding next element to tune set
 	private int TUNE_SET_SPACING = 4; 
 	
-	// The natural log of 2. Pre-calculating this makes log2() a bit more efficient
+	// The natural log of 2. 
+	// Pre-calculating this makes log2() a bit more efficient
 	private static final double NAT_LOG_2 = 0.69314718056d;
 
 	/**
@@ -107,8 +106,9 @@ class DecisionTree {
 	 * @return The best node to prune from the root's subtree, including 
 	 *         the root 
 	 */
-	private TuneWrapper tuneTreeHelper(DTreeNode root, DataModel.Datum[] tuningData) {
-		
+	private TuneWrapper tuneTreeHelper(DTreeNode root, 
+									DataModel.Datum[] tuningData) 
+	{	
 		DTreeNode bestNode = root;
 		double bestAccuracy;
 		// Try pruning this node and calculate new accuracy. Keep track of
@@ -143,14 +143,14 @@ class DecisionTree {
 
 		// Keep track of best gain seen so far
 		double bestGain = -1;
-		int bestVote = -1;
+		int bestFeature = -1;
 		DataModel.Datum[][] bestSplit = null;
 		
 		int rootDataLength = root.getData().length;
 		int numFeatures = mDataModel.getNumFeatures();
 		// Split on every issue, see which will maximize the gain
 		for(int i = 0; i < numFeatures; i++) {
-			DataModel.Datum[][] split = splitDataOnVote(root.getData(), i);
+			DataModel.Datum[][] split = splitDataOnFeature(root.getData(), i);
 			double currentEntropy = 0;
 			for(int j = 0; j < split.length; j++) {
 				// Add weighted entropy of this subset to running total
@@ -164,7 +164,7 @@ class DecisionTree {
 			// If this gain is better, update best-so-far
 			if(curGain > bestGain) {
 				bestGain = curGain;
-				bestVote = i;
+				bestFeature = i;
 				bestSplit = split;
 			}
 		}
@@ -176,8 +176,8 @@ class DecisionTree {
 			return;
 		}
 		
-		// Set this node's vote index
-		root.setSplitOn(bestVote);
+		// Set this node's feature index
+		root.setSplitOn(bestFeature);
 		
 		// Build and set children nodes
 		for(int i = 0; i < bestSplit.length; i++) {
@@ -196,7 +196,8 @@ class DecisionTree {
 	/**
 	 * Separates the specified data into train and tune sets
 	 * @param data Data to separate
-	 * @return Two lists, first of which is training data, second of which is tuning data
+	 * @return Two lists, first of which is training data, second of which is 
+	 *         tuning data
 	 */
 	private DataModel.Datum[][] buildTrainTuneSets(DataModel.Datum[] data) {
 		DataModel.Datum[][] trainTune = new DataModel.Datum[2][];
@@ -225,14 +226,15 @@ class DecisionTree {
 	}
 	
 	/**
-	 * Splits the data on the specified vote, returning lists 
+	 * Splits the data on the specified feature, returning lists of data for
+	 * each feature value
 	 * @param data Data to split
-	 * @param voteIndex Vote to split on
-	 * @return An array of three Representative arrays. Index 0 is the yay votes,
-	 *             index 1 is the nay votes, and index 2 is the present votes. 
+	 * @param featureIndex Feature on which to split
+	 * @return An 2d array with all data split into separate lists based on
+	 *         their feature value at the specified feature index 
 	 */
-	private DataModel.Datum[][] splitDataOnVote(DataModel.Datum[] data,
-												int voteIndex) 
+	private DataModel.Datum[][] splitDataOnFeature(DataModel.Datum[] data,
+												int featureIndex) 
 	{
 		int numFeatureVals = mDataModel.getNumFeatureValues();	
 
@@ -242,9 +244,9 @@ class DecisionTree {
 		for(int i = 0; i < numFeatureVals; i++)
 			splits.add(new ArrayList<DataModel.Datum>());
 		
-		// On the specified vote, split data into lists of each feature value
+		// On the specified feature, split data into lists of each feature value
 		for(DataModel.Datum d : data) {
-			Character featureVal = d.getFeature(voteIndex);
+			Character featureVal = d.getFeature(featureIndex);
 			// Add feature to the correct list
 			for(int i = 0; i < numFeatureVals; i++) {
 				if(mDataModel.getFeatureValue(i).equals(featureVal)) {
@@ -255,7 +257,7 @@ class DecisionTree {
 		}
 
 		// Initialize the 2d array which will hold lists of data split by
-		// feature value on the vote specified
+		// feature value on the feature specified
 		DataModel.Datum[][] splitLists = new DataModel.Datum[numFeatureVals][];
 				
 		// Copy to arrays and add to respective locations in container array
@@ -349,8 +351,8 @@ class DecisionTree {
 	}
 	
 	/**
-	 * Calculates the log base 2 of the argument. log2(0) here is defined to be 0.
-	 * With help from: http://www.linuxquestions.org/questions/programming-9/log-base-2-function-in-java-594619/
+	 * Calculates the log base 2 of the argument. log2(0) here is defined to be 
+	 * 0 for convenience purposes.
 	 * @param x value to find log of
 	 * @return The log base 2 of the argument. log2(0) is defined as 0.
 	 */
