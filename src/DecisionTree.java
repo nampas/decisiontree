@@ -1,6 +1,10 @@
 import java.util.ArrayList;
-import java.util.Set;
 
+/**
+ * A decision tree, which can classify any data representable by a DatModel.
+ * @author Nathan P
+ *
+ */
 class DecisionTree {
 
 	private static final String TAG = DecisionTree.class.getSimpleName();

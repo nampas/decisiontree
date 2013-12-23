@@ -4,7 +4,7 @@ import java.util.Set;
 
 /**
  * A data model for the decision tree. This includes a list of data, and the 
- * possible feature values for each feature
+ * possible feature values for each feature.
  * @author Nathan P
  *
  */
@@ -15,6 +15,14 @@ public class DataModel {
 	private Character[] mLabels;
 	private int mNumFeatures;
 
+	/**
+	 * A private DataModel constructor for use by the constructor. The public
+	 * should use the builder to instantiate instances of this class
+	 * @param data All data in the data model
+	 * @param featureValues A set of possible feature values
+	 * @param labels A set of labels
+	 * @param numFeatures The number of features that each datum contains
+	 */
 	private DataModel(Datum[] data, 
 			Character[] featureValues, 
 			Character[] labels,
@@ -63,6 +71,11 @@ public class DataModel {
 		return mNumFeatures;
 	}
 
+	/**
+	 * A data model builder
+	 * @author Nathan P
+	 *
+	 */
 	public static class Builder {
 
 		ArrayList<Datum> mData;
@@ -78,11 +91,22 @@ public class DataModel {
 			mNumFeatures = -1;
 		}
 
+		/**
+		 * Adds a datum to the data set. Throws an IllegalStateException if 
+		 * this data has a different feature length than other data in the 
+		 * data model, or if the addition of this datum increases the label set
+		 * above size 2.
+		 * @param id The new datum's unique identifier
+		 * @param label The new datum's label (classification)
+		 * @param feature A string of feature values for the new datum
+		 */
 		public void addDatum(String id, char label, String features) {
 			mData.add(new Datum(id, label, features));
-
+			
+			int featureLength = features.length();
+			
 			// Add features to the feature value set
-			for(int i = 0; i < features.length(); i++) {
+			for(int i = 0; i < featureLength; i++) {
 				mFeatureValues.add(features.charAt(i));
 			}
 
@@ -96,12 +120,16 @@ public class DataModel {
 			
 			// Throw an exception if this datum has a different feature size
 			if(mNumFeatures == -1)
-				mNumFeatures = features.length();
-			else if(mNumFeatures != features.length())
+				mNumFeatures = featureLength;
+			else if(mNumFeatures != featureLength)
 				throw new IllegalStateException("All data must have the same "
 						+ "number of features");
 		}
 
+		/**
+		 * Instantiates a DataModel from the data specified with addDatum() 
+		 * @return A DataModel representing all the data specified by addDatum()
+		 */
 		public DataModel buildDataModel() {
 			// Throw an error if there's only one label. You don't need a
 			// decision tree to split this data silly.
@@ -109,7 +137,7 @@ public class DataModel {
 				throw new IllegalStateException("The data model contains only "
 						+ "one label");
 
-			// Put everything in an array
+			// Put everything in arrays
 			Datum[] data = new Datum[mData.size()];
 			mData.toArray(data);
 			Character[] featureValues = new Character[mFeatureValues.size()];
@@ -134,7 +162,14 @@ public class DataModel {
 		private char mLabel;
 		private String mFeatures;
 
-		public Datum(String id, char label, String features) {
+		/**
+		 * Private constructor. This class should only be instantiated with
+		 * the builder
+		 * @param id The new datum's unique identifier
+		 * @param label The new datum's label (classification)
+		 * @param feature A string of feature values for the new datum
+		 */
+		private Datum(String id, char label, String features) {
 			mLabel = label;
 			mIdentifier = id;
 			mFeatures = features;

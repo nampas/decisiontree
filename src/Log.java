@@ -5,7 +5,7 @@
  */
 class Log {
 	
-	private static final boolean DEBUG = true;
+	private static final boolean DEBUG = false;
 
 	/**
 	 * Prints info messages to console
