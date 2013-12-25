@@ -24,22 +24,20 @@ public class VotingTester {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		DataModel dataModel;
 		// Build the data model from the specified file or from the default path
-		if(args.length > 0)
-			dataModel = parseFile(args[0]);
-		else 
-			dataModel = parseFile(VOTING_DATA_FILE);
+		DataModel dataModel = (args.length > 0) ? 
+				parseFile(args[0]) : parseFile(VOTING_DATA_FILE);
 		
 		DecisionTree dTree = new DecisionTree(dataModel);
 		
 		// Train and tune on the entire data set, and print the tree
 		Log.i(TAG, "Training and tuning on entire data set");
-		dTree.trainAndTune(dataModel.getData());
+		dTree.trainAndTune();
 		Log.i(TAG, "Tree induced from training and pruning on entire data set:" 
 				+ "\n" + dTree);
 		
-		// Do leave-one-out cross validation
+		// Do leave-one-out cross validation to determine accuracy
+		Log.i(TAG, "Executing leave-one-out cross validation");
 		double louAccuracy = dTree.doLOUCrossValidation();
 		DecimalFormat doubleFormat = new DecimalFormat("#.000");
 		Log.i(TAG, "Tree accuracy " + doubleFormat.format(louAccuracy) + "%");
@@ -50,14 +48,13 @@ public class VotingTester {
 	 * Error checking is minimal, this parser mostly assumes that the file
 	 * is "to spec"
 	 * @param filePath Path to file
-	 * @return A data model representing the data
+	 * @return A data model representing the file's data
 	 */
 	public static DataModel parseFile(String filePath) {
 		Log.i(TAG, "Parsing file at " + filePath);
 		
 		File file = new File(filePath);
 		DataModel.Builder dataBuilder = new DataModel.Builder();
-		
 		try {
 			Scanner scanner = new Scanner(file);
 			while(scanner.hasNextLine()) {
@@ -76,7 +73,7 @@ public class VotingTester {
 		} catch (FileNotFoundException e) {
 			Log.e(TAG, e.getMessage());
 		}
-		
+
 		return dataBuilder.buildDataModel();
 	}
 }

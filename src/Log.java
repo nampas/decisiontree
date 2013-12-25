@@ -10,7 +10,7 @@ class Log {
 	/**
 	 * Prints info messages to console
 	 * @param tag Tag, usually class name
-	 * @param msg Message
+	 * @param msg Info message
 	 */
 	public static void i(String tag, String msg) {
 		System.out.println(tag + " : " + msg);
@@ -19,7 +19,7 @@ class Log {
 	/**
 	 * Prints error messages to console
 	 * @param tag Tag, usually class name
-	 * @param msg Message
+	 * @param msg Error message
 	 */
 	public static void e(String tag, String msg) {
 		System.err.println(tag + " : " + msg);
@@ -28,7 +28,7 @@ class Log {
 	/**
 	 * Prints debug messages to console
 	 * @param tag Tag, usually class name
-	 * @param msg Message
+	 * @param msg Debug message
 	 */
 	public static void d(String tag, String msg) {
 		if(DEBUG)

@@ -34,7 +34,6 @@ class DecisionTree {
 	 * across all instances
 	 */
 	public double doLOUCrossValidation() {
-		Log.i(TAG, "Executing leave-one-out cross validation");
 		
 		DataModel.Datum[] data = mDataModel.getData();
 		
@@ -64,7 +63,18 @@ class DecisionTree {
 		return totalAccuracy / data.length;
 	}
 	
-	public void trainAndTune(DataModel.Datum[] data) {
+	/**
+	 * Trains and tunes decision tree on entire data set
+	 */
+	public void trainAndTune() {
+		trainAndTune(mDataModel.getData());
+	}
+	
+	/**
+	 * Trains and tunes decision tree on the specified data set
+	 * @param data Data on which to train and tune
+	 */
+	private void trainAndTune(DataModel.Datum[] data) {
 		// Split data into training and tuning sets
 		DataModel.Datum[][] trainTune = buildTrainTuneSets(data);
 
@@ -307,7 +317,7 @@ class DecisionTree {
 
 	@Override
 	public String toString() {
-		return stringHelper(mRootNode, 1);
+		return "Root" + stringHelper(mRootNode, 1);
 	}
 	
 	/**
@@ -317,16 +327,14 @@ class DecisionTree {
 	 * @return As tring representation of this node and its subtree
 	 */
 	private String stringHelper(DTreeNode root, int depth) {
-		String str = root + "\n";
+		StringBuilder str = new StringBuilder(root + "\n");
 		for(DTreeNode r : root.getChildren()) {
-			if(r != null) {
-				// Add correct indentation
-				for(int i = 0; i < depth; i++)
-					str += "  ";
-				str += stringHelper(r, depth+1);
-			}
+			// Add correct indentation
+			for(int i = 0; i < depth; i++)
+				str.append("  ");
+			str.append(stringHelper(r, depth+1));
 		}
-		return str;
+		return str.toString();
 	}
 	
 	/**
@@ -337,7 +345,7 @@ class DecisionTree {
 	private double calculateEntropy(DataModel.Datum[] data) {
 		
 		int label1Count = 0;
-		// Add up number of D party politicians
+		// Sum data with first label affilitations
 		for(DataModel.Datum d : data)
 			if(d.getLabel() == mDataModel.getLabel(0)) 
 				label1Count++;
@@ -347,7 +355,7 @@ class DecisionTree {
 				0 : (double) label1Count / data.length; 
 		double label2Prob = 1.0d - label1Prob;
 		
-		// Now plug in to the binary entropy equation
+		// Calculate entropy with the binary entropy equation
 		double entropy = -label1Prob * log2(label1Prob) - 
 				label2Prob * log2(label2Prob);
 		
@@ -356,7 +364,7 @@ class DecisionTree {
 	
 	/**
 	 * Calculates the log base 2 of the argument. log2(0) here is defined to be 
-	 * 0 for convenience purposes.
+	 * 0 for convenience purposes when calculating entropy.
 	 * @param x value to find log of
 	 * @return The log base 2 of the argument. log2(0) is defined as 0.
 	 */
@@ -367,9 +375,14 @@ class DecisionTree {
 			return Math.log(x) / NAT_LOG_2;
 	}
 	
+	/**
+	 * Wrapper class for tracking best node to prune when tuning the tree
+	 * @author Nathan P
+	 *
+	 */
 	private class TuneWrapper {
-		double bestAccuracy;
-		DTreeNode bestNodeToPrune;
+		public double bestAccuracy;
+		public DTreeNode bestNodeToPrune;
 		
 		public TuneWrapper(DTreeNode nodeToPrune, double accuracy) {
 			bestAccuracy = accuracy;

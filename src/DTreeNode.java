@@ -9,26 +9,23 @@ import java.util.Random;
 class DTreeNode {
 
 	// If this node contains uniform data (is a leaf), this will be the 
-	// uniform label
+	// uniform label. Otherwise, it's null.
 	private Character mUniformVal; 
 							 
-	private double mEntropy;
 	// The feature type that this node splits on, or null if this is the root
-	private Character mFeatureValue; 
-	
+	private Character mFeatureValue;	
 	// The index of the feature on which this node splits
-	private int mSlitOnFeature; 
+	private int mSplitOnFeature; 
 	private ArrayList<DTreeNode> mChildren;
 	private DTreeNode mParent; 
 	private DataModel.Datum[] mData;
+	private double mEntropy;
 	
 	// The majority label at this leaf, or null if tied
 	private Character mMajorityLabel; 
 	
 	// A list of all possible labels
 	private Character[] mLabels;
-	
-	public char mPruneUniformVal;
 
 	/**
 	 * Builds a root node
@@ -44,7 +41,7 @@ class DTreeNode {
 	}
 
 	/**
-	 * Builds an intermediary or leaf tree node
+	 * Builds an intermediary or leaf node
 	 * @param data The data that this node contains
 	 * @param featureVal The feature value that this node represents
 	 * @param parent This node's parent
@@ -97,7 +94,7 @@ class DTreeNode {
 	 * @param i The index of the feature on which this node splits
 	 */
 	public void setSplitOn(int i) {
-		mSlitOnFeature = i;
+		mSplitOnFeature = i;
 	}
 
 	/**
@@ -119,8 +116,7 @@ class DTreeNode {
 		for(DataModel.Datum d : mData) {
 			if(d.getLabel() == mLabels[0]) label1Count++;
 			else label2Count++;
-			// If there exists both labels in the node's data set, node is 
-			// not uniform
+			// If both labels exist in the node's data set, node is not uniform
 			if(label1Count > 0 && label2Count > 0) 
 				return null;
 		}
@@ -130,7 +126,7 @@ class DTreeNode {
 		} else if(label2Count > 0) {
 			label = mLabels[1];
 		} else {
-			// This means we have an empty data list. This node will become a 
+			// This means we have an empty data set. This node will become a 
 			// leaf whose uniform value is the majority label of the 
 			// parent node (or random if no parent)
 			label = (mParent == null) ? 
@@ -140,7 +136,7 @@ class DTreeNode {
 	}
 	
 	/**
-	 * Randomly returns a label
+	 * Returns a random label
 	 * @return
 	 */
 	private char randomLabel() {
@@ -151,8 +147,9 @@ class DTreeNode {
 	}
 
 	/**
-	 * Calculates and returns the majority party at this node
-	 * @return The majority party at this node
+	 * Calculates and returns the majority label at this node, or null if the
+	 * node labels are tied
+	 * @return The majority label at this node, or null if tied
 	 */
 	private Character setMajorityLabel()	{
 		int label1Count = 0;
@@ -179,8 +176,9 @@ class DTreeNode {
 	
 	/**
 	 * Recursive helper for finding the majority label at a node
-	 * @param root Root node of tree, to search up from
-	 * @return The majority label at the closest ancestor 
+	 * @param root Root node of tree
+	 * @return The majority label at the closest ancestor with a majority, or a 
+	 *         random label if no ancestors have a majority
 	 */
 	private char getMajorityLabelHelper(DTreeNode root) {
 		Character val = root.mMajorityLabel;
@@ -228,7 +226,7 @@ class DTreeNode {
 	 * @return
 	 */
 	public int getSplitOn() {
-		return mSlitOnFeature;
+		return mSplitOnFeature;
 	}
 
 	/**
@@ -241,16 +239,12 @@ class DTreeNode {
 
 	@Override
 	public String toString() {
-		// We can take advantage of letter binary representations to convert 
-		// from feature number to corresponding issue letter.
-		// 'A' + 1 is B, 'A' + 2 is C, etc.
-		char a = 'A'; //
-		String str = "";
+		StringBuilder str = new StringBuilder();
 		if(mUniformVal == null)
-			str = (mFeatureValue == null) ? " " : mFeatureValue
-				+ " Feature " + (char)(a + mSlitOnFeature);
+			str.append((mFeatureValue == null) ? " " : mFeatureValue
+				+ " Feature " + mSplitOnFeature);
 		else 
-			str = mFeatureValue + " " + mUniformVal;
-		return str +=  " (" + mData.length + " data)";
+			str.append(mFeatureValue + " " + mUniformVal);
+		return str.toString();
 	}
 }

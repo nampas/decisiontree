@@ -3,8 +3,8 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * A data model for the decision tree. This includes a list of data, and the 
- * possible feature values for each feature.
+ * A data model for the decision tree. This includes a list of data, the 
+ * possible feature values for each feature and the label set.
  * @author Nathan P
  *
  */
@@ -16,8 +16,8 @@ public class DataModel {
 	private int mNumFeatures;
 
 	/**
-	 * A private DataModel constructor for use by the constructor. The public
-	 * should use the builder to instantiate instances of this class
+	 * A private constructor for use by the builder. The public should use 
+	 * the builder to instantiate instances of this class
 	 * @param data All data in the data model
 	 * @param featureValues A set of possible feature values
 	 * @param labels A set of labels
@@ -26,7 +26,8 @@ public class DataModel {
 	private DataModel(Datum[] data, 
 			Character[] featureValues, 
 			Character[] labels,
-			int numFeatures) {
+			int numFeatures) 
+	{
 		mData = data;
 		mFeatureValues = featureValues;
 		mLabels = labels;
@@ -34,8 +35,8 @@ public class DataModel {
 	}
 
 	/**
-	 * Returns the feature value at the specified index. For each feature, a datum
-	 * will be labeled with any one feature value.
+	 * Returns the feature value at the specified index. For each feature, 
+	 * a datum will be labeled with any one feature values.
 	 * @return
 	 */
 	public Character getFeatureValue(int i) {
@@ -44,17 +45,27 @@ public class DataModel {
 
 	/**
 	 * Returns the number of feature values. This is the number of ways that 
-	 * a datum can be labeled for a certain feature 
+	 * a datum can be labeled for a given feature. For example, a data set with
+	 * boolean feature will return 2. 
 	 * @return
 	 */
 	public int getNumFeatureValues() {
 		return mFeatureValues.length;
 	}
 
+	/**
+	 * Returns the label set for this data model
+	 * @return
+	 */
 	public Character[] getLabels() {
 		return mLabels;
 	}
 	
+	/**
+	 * Returns the label at the specified index
+	 * @param i Label's index
+	 * @return
+	 */
 	public Character getLabel(int i) {
 		return mLabels[i];
 	}
@@ -67,6 +78,11 @@ public class DataModel {
 		return mData.length;
 	}
 	
+	/**
+	 * Returns the number of features that each datum must contains in the 
+	 * data set
+	 * @return
+	 */
 	public int getNumFeatures() {
 		return mNumFeatures;
 	}
@@ -78,10 +94,9 @@ public class DataModel {
 	 */
 	public static class Builder {
 
-		ArrayList<Datum> mData;
+		private ArrayList<Datum> mData;
 		private Set<Character> mFeatureValues;
 		private Set<Character> mLabels;
-		
 		private int mNumFeatures;
 
 		public Builder() {
@@ -128,7 +143,8 @@ public class DataModel {
 
 		/**
 		 * Instantiates a DataModel from the data specified with addDatum() 
-		 * @return A DataModel representing all the data specified by addDatum()
+		 * @return A DataModel representing all the data previously specified 
+		 *         with addDatum()
 		 */
 		public DataModel buildDataModel() {
 			// Throw an error if there's only one label. You don't need a
@@ -151,14 +167,13 @@ public class DataModel {
 	}
 
 	/**
-	 * Represents an input datum for the decision tree
+	 * Represents a datum for the decision tree
 	 * @author Nathan P
 	 */
 	public static class Datum {
 
-		// This datum's unique ID
-		private String mIdentifier;
-
+		
+		private String mIdentifier; // This datum's unique ID
 		private char mLabel;
 		private String mFeatures;
 
@@ -193,10 +208,6 @@ public class DataModel {
 
 		public char getLabel() {
 			return mLabel;
-		}
-
-		public boolean equalFeatures(Datum compare) {
-			return mFeatures.equals(compare.getFeatures());
 		}
 	}
 }
