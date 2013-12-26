@@ -9,6 +9,8 @@ import java.util.Set;
  *
  */
 public class DataModel {
+	
+	private static final String TAG = DataModel.class.getSimpleName();
 
 	private Datum[] mData;
 	private Character[] mFeatureValues;

@@ -30,7 +30,7 @@ class DecisionTree {
 	}
 	
 	/**
-	 * Executes leave-one-out cross validation, and prints the average accuracy
+	 * Executes leave-one-out cross validation, and returns the average accuracy
 	 * across all instances
 	 */
 	public double doLOUCrossValidation() {

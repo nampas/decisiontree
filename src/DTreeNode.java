@@ -8,6 +8,8 @@ import java.util.Random;
  */
 class DTreeNode {
 
+	private static final String TAG = DTreeNode.class.getSimpleName();
+	
 	// If this node contains uniform data (is a leaf), this will be the 
 	// uniform label. Otherwise, it's null.
 	private Character mUniformVal; 
